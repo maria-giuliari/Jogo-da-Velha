@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jogo da Velha</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f0f0f;
+    color: #e8e8e8;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 420px;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-align: center;
+    color: #fff;
+  }
+
+  /* Mode selector */
+  .mode-selector {
+    display: flex;
+    gap: 8px;
+    background: #1a1a1a;
+    padding: 4px;
+    border-radius: 10px;
+    width: 100%;
+  }
+
+  .mode-btn {
+    flex: 1;
+    padding: 8px 0;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: #888;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+
+  .mode-btn.active {
+    background: #fff;
+    color: #0f0f0f;
+  }
+
+  /* Status */
+  .status {
+    font-size: 0.9rem;
+    color: #aaa;
+    min-height: 22px;
+    text-align: center;
+  }
+
+  .status.win  { color: #6ee76e; font-weight: 600; }
+  .status.lose { color: #e76e6e; font-weight: 600; }
+  .status.draw { color: #e7c46e; font-weight: 600; }
+
+  /* Board */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  .cell {
+    aspect-ratio: 1;
+    background: #1a1a1a;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.4rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    user-select: none;
+    color: #fff;
+  }
+
+  .cell:hover:not(.taken) {
+    background: #252525;
+    transform: scale(1.03);
+  }
+
+  .cell.taken { cursor: default; }
+
+  .cell.x { color: #6eb5ff; }
+  .cell.o { color: #ff8c6e; }
+
+  .cell.highlight {
+    background: #2a2a1a;
+    box-shadow: 0 0 0 2px #e7c46e55;
+  }
+
+  /* Buttons */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 11px;
+    border: none;
+    border-radius: 9px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: #fff;
+    color: #0f0f0f;
+  }
+
+  .btn-secondary {
+    background: #1a1a1a;
+    color: #aaa;
+  }
+
+  /* Info box */
+  .info {
+    width: 100%;
+    background: #1a1a1a;
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 0.78rem;
+    color: #777;
+    line-height: 1.6;
+  }
+
+  .info strong { color: #bbb; }
+
+  /* Score */
+  .score {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .score-item {
+    flex: 1;
+    background: #1a1a1a;
+    border-radius: 9px;
+    padding: 10px 8px;
+    text-align: center;
+  }
+
+  .score-label { font-size: 0.68rem; color: #666; letter-spacing: 0.05em; text-transform: uppercase; }
+  .score-num   { font-size: 1.4rem; font-weight: 700; color: #fff; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Jogo da Velha</h1>
+
+  <div class="mode-selector">
+    <button class="mode-btn active" onclick="setMode('heuristica')">Heurística</button>
+    <button class="mode-btn"        onclick="setMode('loshu')">Lo Shu</button>
+  </div>
+
+  <div class="score">
+    <div class="score-item">
+      <div class="score-label">Você</div>
+      <div class="score-num" id="scoreX">0</div>
+    </div>
+    <div class="score-item">
+      <div class="score-label">Empate</div>
+      <div class="score-num" id="scoreDraw">0</div>
+    </div>
+    <div class="score-item">
+      <div class="score-label">CPU</div>
+      <div class="score-num" id="scoreO">0</div>
+    </div>
+  </div>
+
+  <div class="status" id="status">Sua vez — você é X</div>
+
+  <div class="board" id="board"></div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary"   onclick="resetGame()">Nova partida</button>
+    <button class="btn btn-secondary" onclick="resetScore()">Zerar placar</button>
+  </div>
+
+  <div class="info" id="info"></div>
+</div>
+
+<script>
+// ─── Estado ──────────────────────────────────────────────────────────────────
+let board   = Array(9).fill(null);
+let gameOver = false;
+let mode    = 'heuristica';
+let score   = { X: 0, O: 0, draw: 0 };
+
+const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+// Lo Shu: mapeamento posição → valor
+const LO_SHU = [2,9,4, 7,5,3, 6,1,8];
+const LO_IDX = {};
+LO_SHU.forEach((v, i) => LO_IDX[v] = i);
+
+// ─── Heurística ──────────────────────────────────────────────────────────────
+function canWin(b, player) {
+  for (const [a,c,d] of WINS) {
+    const line = [b[a], b[c], b[d]];
+    if (line.filter(v => v === player).length === 2 && line.includes(null)) {
+      return [a,c,d][line.indexOf(null)];
+    }
+  }
+  return null;
+}
+
+function cpuHeuristica(b) {
+  const free = b.map((v,i) => v === null ? i : -1).filter(i => i >= 0);
+  let m;
+  if ((m = canWin(b, 'O')) !== null) return m;
+  if ((m = canWin(b, 'X')) !== null) return m;
+  if (b[4] === null) return 4;
+  const corners = [0,2,6,8], opp = {0:8,2:6,6:2,8:0};
+  for (const c of corners) if (b[c]==='X' && b[opp[c]]===null) return opp[c];
+  for (const c of corners) if (b[c]===null) return c;
+  return free[0];
+}
+
+// ─── Lo Shu ──────────────────────────────────────────────────────────────────
+function playerVals(b, p) { return b.map((v,i) => v===p ? LO_SHU[i] : null).filter(v=>v!==null); }
+function freeVals(b)       { return b.map((v,i) => v===null ? LO_SHU[i] : null).filter(v=>v!==null); }
+
+function winningVal(vals, free) {
+  for (let i = 0; i < vals.length; i++)
+    for (let j = i+1; j < vals.length; j++) {
+      const c = 15 - vals[i] - vals[j];
+      if (c >= 1 && c <= 9 && free.includes(c)) return c;
+    }
+  return null;
+}
+
+function checkWinnerLoShu(b, p) {
+  const vals = playerVals(b, p);
+  if (vals.length < 3) return false;
+  for (let i=0;i<vals.length;i++)
+    for (let j=i+1;j<vals.length;j++)
+      for (let k=j+1;k<vals.length;k++)
+        if (vals[i]+vals[j]+vals[k]===15) return true;
+  return false;
+}
+
+function cpuLoShu(b) {
+  const myV  = playerVals(b, 'O');
+  const advV = playerVals(b, 'X');
+  const free = freeVals(b);
+  let v;
+  if ((v = winningVal(myV,  free)) !== null) return LO_IDX[v];
+  if ((v = winningVal(advV, free)) !== null) return LO_IDX[v];
+  if (b[4] === null) return 4;
+  for (const fv of free) if ([2,4,6,8].includes(fv)) return LO_IDX[fv];
+  return LO_IDX[free[0]];
+}
+
+// ─── Verificar vencedor (heurística usa linhas, Lo Shu usa soma) ─────────────
+function checkWinner(b) {
+  if (mode === 'loshu') {
+    if (checkWinnerLoShu(b, 'X')) return { winner:'X', line: getWinLine(b,'X') };
+    if (checkWinnerLoShu(b, 'O')) return { winner:'O', line: getWinLine(b,'O') };
+    return null;
+  }
+  for (const [a,c,d] of WINS) {
+    if (b[a] && b[a]===b[c] && b[a]===b[d]) return { winner:b[a], line:[a,c,d] };
+  }
+  return null;
+}
+
+function getWinLine(b, p) {
+  // Para o Lo Shu, encontrar os 3 índices que formam a soma 15
+  const entries = b.map((v,i)=>({v,i})).filter(({v})=>v===p);
+  for (let i=0;i<entries.length;i++)
+    for (let j=i+1;j<entries.length;j++)
+      for (let k=j+1;k<entries.length;k++) {
+        const sum = LO_SHU[entries[i].i]+LO_SHU[entries[j].i]+LO_SHU[entries[k].i];
+        if (sum===15) return [entries[i].i,entries[j].i,entries[k].i];
+      }
+  return [];
+}
+
+// ─── Render ──────────────────────────────────────────────────────────────────
+function render(highlightLine=[]) {
+  const el = document.getElementById('board');
+  el.innerHTML = '';
+  board.forEach((val, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (val ? ' taken '+val.toLowerCase() : '') + (highlightLine.includes(i) ? ' highlight' : '');
+    cell.textContent = val || '';
+    if (!val && !gameOver) cell.onclick = () => humanPlay(i);
+    el.appendChild(cell);
+  });
+}
+
+function setStatus(msg, cls='') {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + cls;
+}
+
+function updateScore() {
+  document.getElementById('scoreX').textContent    = score.X;
+  document.getElementById('scoreO').textContent    = score.O;
+  document.getElementById('scoreDraw').textContent = score.draw;
+}
+
+// ─── Jogo ────────────────────────────────────────────────────────────────────
+function humanPlay(i) {
+  if (board[i] || gameOver) return;
+  board[i] = 'X';
+  render();
+
+  const res = checkWinner(board);
+  if (res) { endGame(res.winner, res.line); return; }
+  if (board.every(v=>v)) { endGame(null); return; }
+
+  setStatus('CPU pensando…');
+  setTimeout(cpuPlay, 320);
+}
+
+function cpuPlay() {
+  const idx = mode === 'heuristica' ? cpuHeuristica(board) : cpuLoShu(board);
+  board[idx] = 'O';
+  render();
+
+  const res = checkWinner(board);
+  if (res) { endGame(res.winner, res.line); return; }
+  if (board.every(v=>v)) { endGame(null); return; }
+
+  setStatus('Sua vez — você é X');
+}
+
+function endGame(winner, line=[]) {
+  gameOver = true;
+  render(line);
+  if (winner === 'X') { score.X++;    updateScore(); setStatus('Você venceu! 🎉', 'win');  }
+  else if (winner === 'O') { score.O++;updateScore(); setStatus('CPU venceu! 🤖', 'lose'); }
+  else { score.draw++; updateScore(); setStatus('Empate! 🤝', 'draw'); }
+}
+
+function resetGame() {
+  board = Array(9).fill(null);
+  gameOver = false;
+  render();
+  setStatus('Sua vez — você é X');
+}
+
+function resetScore() {
+  score = { X:0, O:0, draw:0 };
+  updateScore();
+  resetGame();
+}
+
+// ─── Modo ────────────────────────────────────────────────────────────────────
+const INFO = {
+  heuristica: `<strong>Heurística:</strong> o computador segue uma ordem de prioridade — vencer → bloquear → centro → canto oposto → canto livre → lado livre. Simples e eficaz.`,
+  loshu: `<strong>Lo Shu:</strong> cada casa recebe um valor do Quadrado Mágico (2 9 4 / 7 5 3 / 6 1 8). Três valores que somam 15 = vitória. A CPU busca o complemento para 15 nos pares já jogados.`
+};
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.mode-btn').forEach((b,i) => {
+    b.classList.toggle('active', (i===0 && m==='heuristica') || (i===1 && m==='loshu'));
+  });
+  document.getElementById('info').innerHTML = INFO[m];
+  resetGame();
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+setMode('heuristica');
+</script>
+</body>
+</html>
