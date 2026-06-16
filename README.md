@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-Implementações de computador jogando jogo da velha: uma usando **busca heurística** e outra usando o **Quadrado Mágico Lo Shu**.
+Implementações de computador jogando jogo da velha: uma usando Busca Heurística e outra usando o Quadrado Mágico Lo Shu.
 </p>
 
 
